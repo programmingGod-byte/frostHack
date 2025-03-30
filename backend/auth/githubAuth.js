@@ -1,7 +1,7 @@
 const passport = require('passport');
 const GitHubStrategy = require('passport-github2').Strategy;
 const fetch = require('node-fetch');
-
+const User = require('../models/User')
 passport.use(
   new GitHubStrategy(
     {
@@ -24,7 +24,27 @@ passport.use(
         }
 
         profile.email = email;
+
+
+
+
+        let user = await User.findOne({
+          $or: [{ githubId: profile.id }, { email: email }],
+        });
+
+        if (!user) {
+          user = new User({
+            githubId: profile.id,
+            username: profile.username,
+            email: email,
+            avatar: profile.photos[0].value,
+          });
+          await user.save();
+        }
+
+
         return done(null, profile);
+
       } catch (error) {
         return done(error);
       }

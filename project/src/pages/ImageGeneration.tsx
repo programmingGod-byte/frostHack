@@ -1,16 +1,103 @@
-import React, { useState } from 'react';
+import React, { useState,useEffect } from 'react';
 import Navbar from '../components/Navbar';
 import { Image as ImageIcon, Sparkles, Loader2 } from 'lucide-react';
+import axios from 'axios';
+
+
+const convertBlobToBase64 = async (blob:any) => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(blob);
+    reader.onloadend = () => resolve(reader.result);
+    reader.onerror = reject;
+  });
+};
 
 const ImageGeneration = () => {
   const [prompt, setPrompt] = useState('');
   const [loading, setLoading] = useState(false);
+  const [imageUrl,setImageUrl] = useState('');
+  const [user, setUser] = useState(null);
+  const [base64ImageUpload,setBase64ImageUpload] = useState('')
+  const [images,setImages] = useState([])
+
+  
+
+  useEffect(() => {
+
+    axios
+      .get('http://localhost:3000/auth/user', { withCredentials: true })
+      .then((res) => setUser(res.data))
+      .catch(() => setUser(null));
+    
+      // console.log(user)
+
+
+  }, []);
+
+
+  useEffect(() => {
+    
+    if(user){
+
+
+      axios
+      .get(`http://localhost:3000/api/images/${user.id}`, { withCredentials: true })
+      .then((res) => {setImages(res.data.images); console.log(res.data)})
+      .catch(() => setImages([]));
+    
+
+
+ 
+    }
+  }, [user])
+  
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     // Handle image generation logic here
-    setTimeout(() => setLoading(false), 2000);
+    console.log(prompt)
+    console.log(user)
+
+
+    try {
+      let response = await axios.get("http://localhost:8000/generate-image/", {
+        params: { prompt },
+        responseType: "blob", // Important to handle image response
+      });
+
+      // Convert blob to URL for displaying image
+      const imageBlob = new Blob([response.data], { type: "image/png" });
+      // console.log(imageBlob)
+      const imageUrl = URL.createObjectURL(imageBlob);
+      const base64Image = await convertBlobToBase64(imageBlob);
+      // console.log(base64Image)
+      setBase64ImageUpload(base64Image)
+      setImages(image=>{
+        return [...image,{image:base64Image}]
+      })
+      setImageUrl(imageUrl);
+      console.log(imageUrl)
+
+      let responsetoUplaod = await axios.post("http://localhost:3000/api/upload-image", {
+        githubId:user.id,
+        base64Image: base64Image,
+      });
+
+      console.log("Response:", response.data);
+      alert("Image uploaded successfully!");
+
+
+      
+    } catch (error) {
+      console.error("Error generating image:", error);
+      alert("Failed to generate image. Check the server logs.");
+    }
+    finally{
+      setLoading(false)
+    }
+
   };
 
   return (
@@ -66,17 +153,18 @@ const ImageGeneration = () => {
           <div className="bg-gray-800/50 backdrop-blur-xl rounded-2xl shadow-lg p-8 border border-gray-700">
             <h2 className="text-2xl font-bold mb-6 text-white flex items-center gap-3">
               <ImageIcon className="w-6 h-6 text-blue-400" />
-              Generated Images
+              previous Generated Images
             </h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {[1, 2, 3, 4].map((i) => (
+              {Array.from(images).map((element,i) => (
                 <div
                   key={i}
                   className="aspect-square bg-gradient-to-br from-blue-500/10 to-purple-500/10 rounded-xl p-1 group hover:from-blue-500/20 hover:to-purple-500/20 transition-all duration-300"
                 >
                   <div className="w-full h-full bg-gray-900 rounded-lg flex items-center justify-center">
                     <div className="text-gray-600 group-hover:scale-110 transition-transform duration-300">
-                      <ImageIcon className="w-12 h-12" />
+                      {/* <ImageIcon className="w-12 h-12" /> */}
+                      <img src={element.image}/>
                     </div>
                   </div>
                 </div>

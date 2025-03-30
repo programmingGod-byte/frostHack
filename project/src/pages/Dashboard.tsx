@@ -11,9 +11,10 @@ const Dashboard = () => {
       .get('http://localhost:3000/auth/user', { withCredentials: true })
       .then((res) => setUser(res.data))
       .catch(() => setUser(null));
-
+    
       console.log(user)
   }, []);
+
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
